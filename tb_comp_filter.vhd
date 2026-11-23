@@ -46,6 +46,7 @@ begin
 
     -- Processo de estimulos e verificacao
     stim_proc : process
+    variable num_erros : integer := 0;
         procedure run_case (
             constant nome       : in string;
             constant v_ang_ant  : in integer;
@@ -75,11 +76,15 @@ begin
             report nome & " -> obtido=" & integer'image(obtido) &
                    " | esperado=" & integer'image(esperado);
 
-            assert obtido = esperado
-                report "FALHA em " & nome & ": obtido=" & integer'image(obtido) &
+            if obtido /= esperado then
+                num_erros := num_erros + 1;
+            
+                report "FALHA em " & nome &
+                       ": obtido=" & integer'image(obtido) &
                        ", esperado=" & integer'image(esperado)
                 severity error;
-
+            end if;
+            
             -- Simula ARM limpando start = '0' apos ler o resultado
             wait until rising_edge(clk);
             start <= '0';
@@ -106,9 +111,29 @@ begin
         -- Caso 3: Valores negativos
         -- angulo_ant=-15.0 (-983040), gyro=-20.0 (-1310720), acc=-10.0 (-655360)
         run_case("Caso 3 (valores negativos)",
-                 -983040, -1310720, -655360, C_DT, C_K, -989323);
+                 -983040, -1310720, -655360, C_DT, C_K, -989323);     
+        
+        -- Dez amostras consecutivas da simulacao em C
+        run_case("Amostra 0", 0,      2568953, 0,      C_DT, C_K, 25162);
+        run_case("Amostra 1", 25162,  2582710, 88975,  C_DT, C_K, 51734);
+        run_case("Amostra 2", 51734,  2593421, 170884, C_DT, C_K, 79518);
+        run_case("Amostra 3", 79518,  2598936, 239438, C_DT, C_K, 108172);
+        run_case("Amostra 4", 108172, 2598020, 289815, C_DT, C_K, 137251);
+        run_case("Amostra 5", 137251, 2590588, 319187, C_DT, C_K, 166263);
+        run_case("Amostra 6", 166263, 2577720, 327033, C_DT, C_K, 194726);
+        run_case("Amostra 7", 194726, 2561458, 315195, C_DT, C_K, 222223);
+        run_case("Amostra 8", 222223, 2544416, 287676, C_DT, C_K, 248453);
+        run_case("Amostra 9", 248453, 2529282, 250198, C_DT, C_K, 273261);
+        
 
-        report "Todos os casos de teste passaram com sucesso!";
+        if num_erros = 0 then
+            report "Todos os casos de teste passaram com sucesso!"
+                severity note;
+        else
+            report integer'image(num_erros) &
+                   " caso(s) de teste falharam!"
+                severity failure;
+        end if;
         wait;
     end process stim_proc;
 
