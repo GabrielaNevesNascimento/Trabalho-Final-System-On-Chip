@@ -23,6 +23,22 @@ entity comp_filter is
 end entity comp_filter;
 
 architecture rtl of comp_filter is
+    
+    -- Converte Q32.32 para Q16.16 com truncamento em direcao a zero
+    function trunc_q16(prod : signed(63 downto 0))
+        return signed is
+        variable ajustado : signed(63 downto 0);
+    begin
+        ajustado := prod;
+    
+        -- Para numeros negativos, compensa o arredondamento
+        -- para baixo realizado pelo deslocamento aritmetico
+        if prod(63) = '1' then
+            ajustado := prod + to_signed(65535, 64);
+        end if;
+    
+        return ajustado(47 downto 16);
+    end function;
 
     type state_t is (
         S_IDLE,
@@ -94,7 +110,7 @@ begin
                     -- 2) pred = angulo_ant + (gyro * dt) >> 16
                     --    Bits (47 downto 16) correspondem ao ajuste de Q32.32 para Q16.16
                     when S_PRED =>
-                        r_pred <= r_ang_ant + r_prod1(47 downto 16);
+                        r_pred <= r_ang_ant + trunc_q16(r_prod1);
                         state  <= S_ERR;
 
                     -- 3) erro = angulo_acc - pred
@@ -109,7 +125,7 @@ begin
 
                     -- 5) angulo_out = pred + (k * erro) >> 16
                     when S_UPDATE =>
-                        r_out  <= std_logic_vector(r_pred + r_prod2(47 downto 16));
+                        r_out <= std_logic_vector(r_pred + trunc_q16(r_prod2));
                         r_done <= '1';
                         state  <= S_WAIT_START_LOW;
 
